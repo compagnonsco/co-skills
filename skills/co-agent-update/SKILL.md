@@ -23,7 +23,7 @@ Ne pas inventer un autre emplacement pour le clone sans raison documentée (conf
 
 ## URL du dépôt
 
-Lire l'URL de `git clone` dans **`AGENT_INSTRUCTIONS.md`** à la racine du dépôt **si le fichier est déjà disponible** (par ex. workspace ou copie locale). Si le dépôt n'est pas encore cloné, utiliser la même URL que celle documentée pour l'équipe dans ce fichier (section « URL du dépôt git ») ; si elle est encore un placeholder non exploitable (`https://TODO` sans remplacement réel), **demander l'URL** à l'utilisateur une seule fois ou signaler que la configuration du dépôt est incomplète.
+Lire l'URL de `git clone` dans **`AGENT_INSTRUCTIONS.md`** à la racine du dépôt **si le fichier est déjà disponible** (par ex. workspace ou copie locale). Si le dépôt n'est pas encore cloné, utiliser l'URL documentée pour l'équipe dans ce fichier (section « URL du dépôt git ») ; si cette URL est absente, invalide ou non exploitable, **demander l'URL** à l'utilisateur une seule fois ou signaler que la configuration du dépôt est incomplète.
 
 ## Étapes
 

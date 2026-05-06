@@ -6,7 +6,7 @@ Ce dépôt regroupe des **skills d'agent** partagés par l'équipe (fichiers `SK
 
 À utiliser pour le premier `git clone` (maintenir cette ligne à jour pour toute l'équipe) :
 
-`https://TODO`
+`https://github.com/compagnonsco/co-skills`
 
 ## Emplacement canonique du clone (home de l'utilisateur)
 
