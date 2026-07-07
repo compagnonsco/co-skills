@@ -1,6 +1,6 @@
 ---
 name: co-pr-review-level
-description: Analyse une pull request et propose son niveau de review requis (faible / modéré / élevé) selon la valeur du changement, puis applique la règle opérationnelle correspondante (merge direct, review humain différé, ou review humain avant merge). Journalise le niveau retenu pour un bilan ultérieur de la méthode. Use when creating or triaging a PR, deciding how much human code review is needed, or when the user mentions "niveau de review", "code review", "review level", "faut-il un review humain".
+description: Analyse une pull request et propose son niveau de review requis (faible / modéré / élevé) selon la valeur du changement, puis applique la règle opérationnelle correspondante (merge direct, review humain différé, ou review humain avant merge). Journalise le niveau retenu pour un bilan ultérieur de la méthode. À utiliser à la création ou au triage d'une PR, pour décider combien de review humain elle mérite, ou quand l'utilisateur mentionne "niveau de review", "code review", "review level", "faut-il un review humain".
 ---
 
 # co-pr-review-level
