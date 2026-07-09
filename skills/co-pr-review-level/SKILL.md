@@ -1,6 +1,6 @@
 ---
 name: co-pr-review-level
-description: Analyse une pull request et propose son niveau de review requis (faible / modéré / élevé) selon la valeur du changement, puis applique la règle opérationnelle correspondante (merge direct, review humain différé, ou review humain avant merge). Journalise le niveau retenu pour un bilan ultérieur de la méthode. À utiliser à la création ou au triage d'une PR, pour décider combien de review humain elle mérite, ou quand l'utilisateur mentionne "niveau de review", "code review", "review level", "faut-il un review humain".
+description: Analyse une pull request et propose son niveau de review requis (faible / modéré / élevé) selon la valeur du changement, puis applique la règle opérationnelle correspondante (merge direct, review humain différé, ou review humain avant merge). Journalise le niveau retenu pour un bilan ultérieur de la méthode. À utiliser à la création ou au triage d'une PR, pour décider combien de review humain elle mérite, ou quand l'utilisateur mentionne "niveau de review", "code review", "review level", "faut-il un review humain", "débordement de discipline", "reviewer cross-discipline".
 ---
 
 # co-pr-review-level
@@ -41,6 +41,11 @@ Le croisement des deux donne un niveau. La grille complète est dans
 [`references/matrice-valeur-review.md`](references/matrice-valeur-review.md) : la consulter avant
 de proposer un niveau. (Cette grille est un instantané de la matrice de référence de l'équipe ;
 si la matrice source change, synchroniser ce fichier manuellement.)
+
+À ce niveau de valeur s'ajoute un troisième axe : le **débordement de discipline**. Une PR qui
+sort de la spécialité de son auteur (beaucoup de FE dans une PR d'un auteur BE, ou l'inverse) a
+un angle mort et peut monter d'un cran (voir l'étape 3). Le niveau final est le plus élevé des
+deux.
 
 Les trois niveaux :
 
@@ -116,13 +121,45 @@ c'est en l'ouvrant qu'on tranche, ne pas se fier à l'extension seule.
 
 Un même diff peut mélanger les deux : retenir le niveau le plus élevé parmi les morceaux.
 
-### 3. Proposer un niveau
+### 3. Évaluer le débordement de discipline
+
+Un review vaut ce que vaut l'œil qui le fait. Une PR qui sort de la discipline de son auteur a
+un angle mort : l'auteur couvre mal la partie hors de sa spécialité. Cet axe s'ajoute à la
+valeur du changement (étape suivante), il ne la remplace pas.
+
+1. **Discipline de l'auteur.** La déduire du roster dans
+   [`references/disciplines-reviewers.md`](references/disciplines-reviewers.md), à partir de
+   l'auteur de la PR (déjà connu : c'est le champ « Dev » journalisé). Auteur absent du roster
+   → **demander** : « Tu te dirais plus FE ou BE, ou à l'aise des deux ? ». Auteur à l'aise des
+   deux / full-stack → **pas de débordement possible**, sauter cette étape.
+
+2. **Part off-discipline du diff.** Parmi les fichiers « À LIRE » du digest (code écrit à la
+   main), repérer ceux de la discipline **opposée** à l'auteur (guide de classement dans le
+   fichier de référence). Markup, contenu, config et glue triviale ne comptent pas.
+
+3. **Calibrer selon la profondeur du travail off-discipline, pas le nombre de fichiers :**
+   - **De base** → pas d'escalade, l'IA + le review automatisé couvrent, peu importe que ça
+     touche l'autre discipline. Ex. BE : CRUD simple, config, mapping trivial, glue. Ex. FE :
+     affichage, style/CSS, texte, binding simple, composant présentationnel, ajustement UX.
+   - **Avancé** du côté opposé → **monter d'un cran** et **cibler un reviewer de la discipline
+     débordée** (via le roster). Ex. BE : logique métier non triviale, nouveau système ou
+     abstraction, changement d'architecture ou de schéma, refacto serveur. Ex. FE : store ou
+     état réactif non trivial, composable qui porte des règles d'affaires, logique de
+     formulaire/validation complexe, refacto de composants, nouvelle archi front (routing,
+     SSR). Ce sont les mêmes signaux qui élèvent le niveau à l'étape 2 (« Signaux de lecture
+     du diff »), appliqués au côté faible de l'auteur.
+
+### 4. Proposer un niveau
 
 Croiser type de projet × nature du changement dans la matrice → **proposer un niveau** avec une
 **justification courte** (1-2 phrases) qui nomme la ligne de matrice utilisée.
 
 En cas de PR mixte (plusieurs natures de changement), **retenir le niveau le plus élevé** parmi
 les morceaux, et le dire.
+
+Le niveau retenu est le **plus élevé** entre le niveau de valeur (matrice, étape 2) et le niveau
+après débordement de discipline (étape 3). S'il vient du débordement, nommer le reviewer visé
+dans la justification.
 
 Présenter à l'utilisateur :
 
@@ -138,7 +175,7 @@ Justification : <pourquoi, en référence à la matrice>
 que celui proposé ; c'est normal et attendu (l'écart proposé/retenu est justement une donnée
 qu'on veut mesurer).
 
-### 4. Appliquer la règle opérationnelle
+### 5. Appliquer la règle opérationnelle
 
 Selon le **niveau retenu** :
 
@@ -168,10 +205,18 @@ Selon le **niveau retenu** :
   - Non assignée : à prendre par un dev pour le review différé.
   ```
 
-- **🟢 Élevé** : un review humain est **requis avant de merger**. Ne pas merger sur la seule base
-  du review agentique. Indiquer que la PR doit être assignée à un review humain.
+  **Débordement de discipline (étape 3).** Si la PR déborde de façon significative, la carte de
+  suivi vise un reviewer de la discipline débordée (roster). Si la PR a de la logique
+  significative **des deux côtés** (FE et BE), créer **deux cartes** : une par discipline (ex.
+  « review FE → Anne » et « review BE → un collègue BE »), chacune assignable et fermable
+  indépendamment.
 
-### 5. Journaliser
+- **🟢 Élevé** : un review humain est **requis avant de merger**. Ne pas merger sur la seule base
+  du review agentique. Indiquer que la PR doit être assignée à un review humain. Si le niveau
+  vient (aussi) d'un débordement de discipline, le review humain avant merge doit inclure un
+  reviewer de la discipline débordée.
+
+### 6. Journaliser
 
 Écrire **une ligne** dans la base Notion « Log des niveaux de review PR » (via l'outil Notion,
 si disponible), avec :
@@ -186,6 +231,7 @@ si disponible), avec :
 - **Dev** : la personne responsable de la PR
 - **Date** : la date du jour
 - **Carte suivi (🟡)** : le lien de la tâche de suivi, si une a été créée (niveau modéré)
+- **Débordement** : discipline débordée + reviewer visé, si applicable (sinon —)
 
 Si Notion est absent, produire la ligne en texte pour saisie manuelle.
 
