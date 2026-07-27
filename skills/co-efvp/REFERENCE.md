@@ -17,28 +17,62 @@
 
 | Champ | Type Notion | Valeurs / Notes |
 |-------|-------------|-----------------|
-| `Outil` | title | Nom de l'outil (ex: "Claude Team") |
-| `Verdict ÉFVP` | select | `Conforme`, `Conforme sous conditions`, `Non conforme` |
+| `Outil / Système` | title | Nom de l'outil (ex: "Claude Team — Anthropic") |
+| `Fournisseur` | rich_text | Entité légale + siège (ex: "Anthropic PBC (San Francisco, CA, USA)") |
+| `Verdict` | select | `✅ Acceptable`, `⚠️ Conditions`, `🔴 Non acceptable`, `🔄 En évaluation` |
 | `Date ÉFVP` | date | Date ISO (YYYY-MM-DD) |
-| `Responsable` | person | Array d'IDs utilisateur Notion |
-| `Lié à l'audit` | relation | Array d'URLs pages audit |
-| `Conditions` | rich_text | Texte libre — liste des conditions si ⚠️ |
-| `Statut conditions` | select | `En cours`, `Toutes remplies`, `N/A` |
+| `RPRP` | person | Array d'IDs utilisateur Notion (responsable de la protection des RP) |
+| `Lié à l'audit` | relation | Array d'URLs pages audit (BD `c88611ab-...`) |
+| `Scope` | select | usage interne à l'organisation, ou projet client. Reprendre les **libellés exacts** des options du select tels qu'ils existent dans la BD (dans le registre actuel: `Interne Compagnons`, `Projet client`) |
+| `Priorité` | select | `🔴 Haute`, `🟡 Moyenne`, `🟢 Basse` |
+| `Statut` | **status** | `Not started`, `In progress`, `Done` |
+| `Révision prévue` | date | Date ISO. Défaut: +3 mois si ⚠️ Conditions, +12 mois si ✅ |
+| `Notes` | rich_text | Résumé du verdict + liste numérotée des conditions à remplir |
+
+`Statut` est de type **status**, pas select: il suit l'avancement des conditions. `⚠️ Conditions` avec
+conditions non remplies = `In progress`. Toutes remplies (ou `✅ Acceptable` sans condition) = `Done`.
+
+Il n'y a **pas** de champ `Conditions` distinct: les conditions vont dans `Notes`, en liste numérotée,
+précédées d'une ligne de contexte (verdict d'audit + score + date). Le détail complet des 9 sections
+va dans le **body** de la page, pas dans les propriétés.
 
 **Payload exemple** (notion-create-pages):
 ```json
 {
   "dataSourceId": "a1f45d7a-b325-4294-89e3-76364e2f439b",
   "properties": {
-    "Outil": { "title": [{ "text": { "content": "Claude Team" } }] },
-    "Verdict ÉFVP": { "select": { "name": "Conforme sous conditions" } },
-    "Date ÉFVP": { "date": { "start": "2026-06-24" } },
-    "Responsable": { "people": [{ "id": "<id-utilisateur>" }] },
-    "Conditions": { "rich_text": [{ "text": { "content": "1. Activer notifications brèches admin\n2. Former les utilisateurs" } }] },
-    "Statut conditions": { "select": { "name": "En cours" } }
+    "Outil / Système": "Claude Team — Anthropic",
+    "Fournisseur": "Anthropic PBC (San Francisco, CA, USA)",
+    "Verdict": "⚠️ Conditions",
+    "date:Date ÉFVP:start": "2026-06-24",
+    "RPRP": "[\"<id-utilisateur>\"]",
+    "Lié à l'audit": "[\"https://app.notion.com/p/<page_audit>\"]",
+    "Scope": "Interne Compagnons",
+    "Priorité": "🟡 Moyenne",
+    "Statut": "In progress",
+    "date:Révision prévue:start": "2026-09-24",
+    "Notes": "Basé sur audit 🟡 Jaune (59/75, 2026-06-20).\n\nConditions à remplir:\n1. Activer les notifications de brèche côté admin.\n2. Former les utilisateurs avant l'ouverture générale."
   }
 }
 ```
+
+---
+
+## Schema BD — Politiques d'usage acceptable
+
+| Champ | Type Notion | Valeurs / Notes |
+|-------|-------------|-----------------|
+| `Outil / Système` | title | Même libellé que dans le Registre ÉFVP |
+| `Version` | rich_text | ex: "1.0" |
+| `Statut` | **status** | `Not started`, `In progress`, `Done` |
+| `Responsable` | person | Array d'IDs utilisateur Notion |
+| `Date de publication` | date | Date ISO |
+| `Révision prévue` | date | Date ISO. Aligner sur la `Révision prévue` de l'ÉFVP |
+| `ÉFVP associée` | **url** | URL de la page ÉFVP. C'est une url, pas une relation |
+| `Notes` | rich_text | Contexte court |
+
+Le corps de la politique (qui peut l'utiliser, quoi éviter, données interdites, responsabilité) va dans
+le **body** de la page.
 
 ---
 
@@ -139,7 +173,7 @@
 
 ### § 8 — Décision et conditions
 
-**Verdict ÉFVP**: [✅ Conforme / ⚠️ Conforme sous conditions / 🔴 Non conforme]
+**Verdict ÉFVP**: [✅ Acceptable / ⚠️ Conditions / 🔴 Non acceptable]
 
 **Justification**:
 [1-3 phrases expliquant la décision]

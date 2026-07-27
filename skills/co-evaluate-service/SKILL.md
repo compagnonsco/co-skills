@@ -1,6 +1,6 @@
 ---
 name: co-evaluate-service
-description: Évaluer un outil/service SaaS avant adoption selon la grille de gouvernance IA (15 dimensions). Score 1-5 par dimension, total /75, no-go automatique sur 5 dimensions critiques (4, 5, 7, 10, 14). Utiliser quand l'utilisateur dit "/co-evaluate-service", "évalue cet outil/service", "est-ce qu'on devrait signer avec X", "compare X et Y comme outils SaaS", ou veut un verdict structuré avant de signer un fournisseur SaaS (Granola, Otter, Notion AI, ChatGPT, etc.). Cousin de /co-evaluate-library mais pour les services SaaS (vs dépendances code).
+description: Évaluer un outil/service SaaS avant adoption selon la grille de gouvernance IA (15 dimensions). Score 1-5 par dimension, total /75, no-go automatique sur 5 dimensions critiques (4, 5, 7, 10, 14), puis statue si une ÉFVP Loi 25 est requise et oriente vers /co-efvp ou /co-approve-service. Utiliser quand l'utilisateur dit "/co-evaluate-service", "évalue cet outil/service", "est-ce qu'on devrait signer avec X", "compare X et Y comme outils SaaS", ou veut un verdict structuré avant de signer un fournisseur SaaS (Granola, Otter, Notion AI, ChatGPT, etc.). Cousin de /co-evaluate-library mais pour les services SaaS (vs dépendances code).
 ---
 
 **LANGUE**: Toujours répondre en français, ton naturel québécois. Aucun mot anglais sauf les noms techniques (SOC2, ISO27001, DPA, MCP, etc.). L'input fourni par l'utilisateur donne l'outil (ou les outils) à évaluer.
@@ -205,6 +205,26 @@ Si **Jaune** ou **Orange**, identifier 2-3 **conditions de remédiation** concr�
 
 ---
 
+## Étape 5.5 — Déterminer si une ÉFVP est nécessaire
+
+L'audit est la seule étape qui voit à la fois la juridiction d'hébergement et la nature de l'outil. C'est donc ici qu'on statue, et le résultat est persisté dans le champ `ÉFVP requise` de la row. `/co-approve-service` s'en sert ensuite comme gate: sans ce flag, personne en aval ne sait qu'une ÉFVP manque.
+
+**Base légale**: Loi 25 art. 17 — une ÉFVP est obligatoire avant toute communication de renseignements personnels **à l'extérieur du Québec**. « Hors Québec » inclut le reste du Canada, pas seulement les États-Unis. Le Critère 5 note la qualité de l'hébergement, pas la conformité art. 17: un 4/5 « Europe ou Canada » reste un transfert hors Québec.
+
+| Flag | Condition |
+|------|-----------|
+| 🔴 **Oui** | L'outil traite des RP **par nature** (note-taker/transcription, CRM, RH, support client, courriel, signature électronique, sondage, facturation) **et** l'hébergement est hors Québec |
+| 🟡 **Selon usage** | Hébergement hors Québec, mais la présence de RP dépend du déploiement (LLM généraliste, IDE/assistant de code, stockage, gestion de projet, analytics, design) |
+| 🟢 **Non** | Hébergement au Québec, **ou** l'outil ne peut recevoir aucun RP par nature (infra pure, service technique sans données utilisateur) |
+
+En pratique la majorité des SaaS tombent en 🔴 ou 🟡: presque tout est hébergé hors Québec. C'est le résultat attendu, pas un défaut de la grille.
+
+Présenter le flag proposé et demander confirmation, comme pour les dimensions critiques:
+
+> "**ÉFVP requise: [flag]** — [justification en 1 phrase: nature des données + juridiction]. Tu confirmes?"
+
+---
+
 ## Étape 6 — Sortie chat
 
 **Format avec légende explicite** (un humain qui lit doit comprendre tout de suite):
@@ -226,6 +246,7 @@ Si **Jaune** ou **Orange**, identifier 2-3 **conditions de remédiation** concr�
 **Score total**: __/__ ( __% )  |  **No-go automatiques**: __
 
 → **Verdict: 🔴 Rouge (no-go automatique sur Critère 14)**
+→ **ÉFVP requise: [🔴 Oui / 🟡 Selon usage / 🟢 Non]** — [justification courte]
 
 **Pourquoi 🔴**: [explication en 1 phrase humaine, ex: "Le fournisseur n'a aucune protection documentée contre les attaques propres à l'IA, alors qu'il utilise activement l'IA."]
 
@@ -257,12 +278,29 @@ Confirmer le push avec l'URL de chaque page créée.
 
 ---
 
+## Étape 8 — Orienter vers la suite du flow
+
+Terminer en nommant la prochaine étape, selon le flag de l'étape 5.5. Sauter cette étape si le verdict est 🔴 Rouge (rien à adopter).
+
+| Flag | Message de sortie |
+|------|-------------------|
+| 🔴 Oui | "Cet outil traite des RP hors Québec: l'ÉFVP est obligatoire avant l'adoption (Loi 25 art. 17). Prochaine étape: `/co-efvp [Outil]`." |
+| 🟡 Selon usage | "Selon les données qui vont réellement transiter, une ÉFVP peut être requise. Prochaine étape: `/co-efvp [Outil]`, ou `/co-approve-service [Outil]` qui posera la question et bloquera au besoin." |
+| 🟢 Non | "Pas d'ÉFVP requise. Prochaine étape: `/co-approve-service [Outil]`." |
+
+Ne jamais envoyer directement vers `/co-approve-service` quand le flag est 🔴.
+
+Si l'audit a été lancé **depuis** `/co-approve-service`, ne pas rediriger: rendre la main à l'orchestrateur avec l'URL de la page d'audit créée et le flag retenu.
+
+---
+
 ## Règles
 
 - **Toujours en français**, ton naturel québécois
 - **Citations URLs obligatoires** pour chaque score ≥ 3 (le score est documentaire)
 - **Investigations en parallèle si possible** — agents secondaires si le runtime les supporte, sinon séquentiel avec output compact
 - **Check-ins humains obligatoires** sur les 5 dim no-go (4, 5, 7, 10, 14)
+- **Toujours statuer sur `ÉFVP requise`** — le champ ne doit jamais rester vide au push, c'est le gate de `/co-approve-service` en aval
 - **Confirmation avant push Notion** — demander confirmation avant toute action irréversible
 - **Posture critique** — marketing claim ≠ engagement contractuel
 - **Pas d'indulgence par défaut** — l'absence d'info = risque, pas confort
