@@ -1,18 +1,18 @@
 ---
 name: co-approve-service
-description: Porte d'entrée du flow de gouvernance des services tiers. Vérifie et orchestre les étapes préalables avant d'inscrire un outil/SaaS dans la liste pérenne des outils approuvés: audit manquant, il lance /co-evaluate-service; ÉFVP requise et manquante, il lance /co-efvp et bloque tant qu'elle n'est pas au registre. Puis gère l'approbation selon le verdict d'audit (vert = direct, jaune/orange = caveats + confirmation, rouge = réévaluer), capture interactivement les infos licence/frais/compte, et push dans la BD Notion "Régistre des outils approuvés" avec les relations Audit et ÉFVP. Utiliser quand l'utilisateur dit "/co-approve-service", "approuve cet outil", "on adopte X", "on signe avec X", ou veut officialiser l'adoption d'un SaaS, que l'audit soit déjà fait ou non.
+description: Porte d'entrée du flow de gouvernance des services tiers. Vérifie et orchestre les étapes préalables avant d'inscrire un outil/SaaS dans la liste pérenne des outils approuvés: audit manquant, il lance /co-evaluate-service; ÉFVP requise et manquante, il lance /co-efvp et bloque tant qu'elle n'est pas au registre. Puis gère l'approbation selon le verdict d'audit (vert = direct, jaune/orange = caveats + confirmation, rouge = réévaluer), capture interactivement les infos licence/frais/compte, et push dans la BD Notion "Régistre des services approuvés" avec les relations Audit et ÉFVP. Utiliser quand l'utilisateur dit "/co-approve-service", "approuve cet outil", "on adopte X", "on signe avec X", ou veut officialiser l'adoption d'un SaaS, que l'audit soit déjà fait ou non.
 ---
 
 **LANGUE**: Toujours répondre en français, ton naturel québécois. Aucun mot anglais sauf les noms techniques (SaaS, DPA, Loi 25, etc.). L'input fourni par l'utilisateur donne l'outil à approuver.
 
 ## Dépendances
 
-- **Notion** (registres de gouvernance de l'équipe): le skill **lit** la BD `Régistre des outils (services tiers)` (audits, data source `c88611ab-240d-413d-a45e-ae8608a437b6`) et la BD `Registre ÉFVP` (data source `a1f45d7a-b325-4294-89e3-76364e2f439b`), et **écrit** dans la BD `Régistre des outils approuvés` (data source `b131ae79-0ef0-407e-b83d-1d5022f854d2`). Nécessite un accès Notion dans le runtime (connecteur built-in, MCP installé, ou équivalent). Sans Notion, le skill ne peut pas fonctionner: il dépend de ces registres.
+- **Notion** (registres de gouvernance de l'équipe): le skill **lit** la BD `Audits des outils (services tiers)` (audits, data source `c88611ab-240d-413d-a45e-ae8608a437b6`) et la BD `Registre ÉFVP` (data source `a1f45d7a-b325-4294-89e3-76364e2f439b`), et **écrit** dans la BD `Régistre des services approuvés` (data source `b131ae79-0ef0-407e-b83d-1d5022f854d2`). Nécessite un accès Notion dans le runtime (connecteur built-in, MCP installé, ou équivalent). Sans Notion, le skill ne peut pas fonctionner: il dépend de ces registres.
 - **Chaînage**: ce skill est la **porte d'entrée** du flow. Il ne suppose rien: il vérifie l'état de chaque étape préalable et lance `/co-evaluate-service` ou `/co-efvp` au besoin, puis reprend la main.
 
 ## Objectif
 
-Officialiser l'adoption d'un outil, en garantissant que les étapes de gouvernance préalables sont faites. Le skill vérifie l'audit (le lance s'il manque), vérifie l'ÉFVP quand elle est requise (la lance et bloque tant qu'elle manque), applique la règle d'approbation selon le verdict d'audit, capture interactivement le volet commercial/licence, et inscrit l'outil dans la **liste pérenne** `Régistre des outils approuvés` (source de vérité des adoptions).
+Officialiser l'adoption d'un outil, en garantissant que les étapes de gouvernance préalables sont faites. Le skill vérifie l'audit (le lance s'il manque), vérifie l'ÉFVP quand elle est requise (la lance et bloque tant qu'elle manque), applique la règle d'approbation selon le verdict d'audit, capture interactivement le volet commercial/licence, et inscrit l'outil dans la **liste pérenne** `Régistre des services approuvés` (source de vérité des adoptions).
 
 **Flow de gouvernance**: `/co-evaluate-service` → `/co-efvp` (si requise) → **`/co-approve-service`**
 
@@ -25,9 +25,9 @@ Le skill est **ré-entrant**: le relancer sur un outil déjà entamé reprend à
 - **0 nom**: interactif → "Quel outil tu veux approuver?"
 - **1 nom**: cet outil.
 
-## Étape 2 — Retrouver l'audit (BD Régistre des outils)
+## Étape 2 — Retrouver l'audit (BD Audits des outils)
 
-Chercher l'outil dans la data source `c88611ab-240d-413d-a45e-ae8608a437b6` (BD `Régistre des outils (services tiers)`). Match case-insensitive, ignorer accents/ponctuation.
+Chercher l'outil dans la data source `c88611ab-240d-413d-a45e-ae8608a437b6` (BD `Audits des outils (services tiers)`). Match case-insensitive, ignorer accents/ponctuation.
 
 - **Pas trouvé** → "Pas d'audit pour [Outil]. L'audit est obligatoire avant l'approbation, je le lance? (oui / non)" Si oui, enchaîner sur le skill `co-evaluate-service` en appel orchestré (voir Handoff ci-dessous). Si non, arrêter.
 - **Un seul audit** → le prendre.
@@ -89,7 +89,7 @@ S'il n'y a **ni caveat ni condition** (audit 🟢 et ÉFVP `✅` sans condition,
 
 ## Étape 4 — Vérifier les doublons (idempotence)
 
-Chercher l'outil dans la BD `Régistre des outils approuvés` (data source `b131ae79-0ef0-407e-b83d-1d5022f854d2`).
+Chercher l'outil dans la BD `Régistre des services approuvés` (data source `b131ae79-0ef0-407e-b83d-1d5022f854d2`).
 - **Déjà présent** → "Déjà approuvé le [Date d'approbation] (licence [X], statut [Y]). Tu veux mettre à jour cette entrée au lieu d'en créer une nouvelle?" Si update → modifier la row existante. Sinon, arrêter.
 - **Absent** → continuer.
 
@@ -116,7 +116,7 @@ Le `Coût annualisé` est calculé automatiquement par la formule Notion, ne pas
 
 ## Étape 6 — Confirmation + push Notion
 
-**Confirmation obligatoire avant push** (demander confirmation avant toute action irréversible): présenter le récap (tool + verdict d'audit + verdict ÉFVP s'il y en a une + tous les champs saisis) et demander "Je pousse dans le Régistre des outils approuvés? (oui / non / ajuster)".
+**Confirmation obligatoire avant push** (demander confirmation avant toute action irréversible): présenter le récap (tool + verdict d'audit + verdict ÉFVP s'il y en a une + tous les champs saisis) et demander "Je pousse dans le Régistre des services approuvés? (oui / non / ajuster)".
 
 Si oui, créer la page dans la data source `b131ae79-0ef0-407e-b83d-1d5022f854d2`:
 - Reporter `Tool`, `Verdict`, `URL` (= `userDefined:URL` de l'audit), tous les champs saisis.

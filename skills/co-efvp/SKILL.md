@@ -7,7 +7,7 @@ description: Réaliser une ÉFVP (Évaluation des facteurs relatifs à la vie pr
 
 ## Dépendances
 
-- **Notion** (registres de gouvernance de l'équipe): le skill **lit** la BD `Régistre des outils (services tiers)` (audits, data source `c88611ab-240d-413d-a45e-ae8608a437b6`) et **écrit** dans la BD `Registre ÉFVP` (data source `a1f45d7a-b325-4294-89e3-76364e2f439b`), avec optionnellement la BD `Politiques d'usage acceptable` (`11dd28ba-c387-4b0b-ba3b-84b4bbd62ddb`). Nécessite un accès Notion dans le runtime (connecteur built-in, MCP installé, ou équivalent). Sans Notion, le skill ne peut pas fonctionner.
+- **Notion** (registres de gouvernance de l'équipe): le skill **lit** la BD `Audits des outils (services tiers)` (audits, data source `c88611ab-240d-413d-a45e-ae8608a437b6`) et **écrit** dans la BD `Registre ÉFVP` (data source `a1f45d7a-b325-4294-89e3-76364e2f439b`), avec optionnellement la BD `Politiques d'usage acceptable` (`11dd28ba-c387-4b0b-ba3b-84b4bbd62ddb`). Nécessite un accès Notion dans le runtime (connecteur built-in, MCP installé, ou équivalent). Sans Notion, le skill ne peut pas fonctionner.
 - **Chaînage**: suppose qu'un audit existe déjà (via `/co-evaluate-service`) et redirige vers `/co-approve-service` à la fin.
 
 ## Objectif
@@ -48,7 +48,7 @@ Avant de collecter quoi que ce soit, chercher l'outil dans la BD `Registre ÉFVP
 
 ## Étape 2 — Vérifier l'audit existant (gate obligatoire)
 
-Chercher l'outil dans la data source `c88611ab-240d-413d-a45e-ae8608a437b6` (BD `Régistre des outils (services tiers)`, URL https://www.notion.so/d18c7a098fb14b7fa01e948e14699d1d). Match case-insensitive, ignorer accents/ponctuation.
+Chercher l'outil dans la data source `c88611ab-240d-413d-a45e-ae8608a437b6` (BD `Audits des outils (services tiers)`, URL https://www.notion.so/d18c7a098fb14b7fa01e948e14699d1d). Match case-insensitive, ignorer accents/ponctuation.
 
 **Résultats possibles:**
 
@@ -121,14 +121,19 @@ Fusionner les données de l'audit (grille 15 dim.) avec les réponses contextuel
 
 | Dimensions audit | Section ÉFVP |
 |-----------------|-------------|
-| Dim 1-2 (infra, chiffrement) | § 5 Mesures techniques |
-| Dim 3 (conservation) | § 5 Cycle de vie |
-| Dim 4 (utilisation données) | § 4 Transfert + § 7 Risques |
-| Dim 5 (hébergement/juridiction) | § 4 Flux et transferts |
-| Dim 7 (no-training) | § 4 + § 7 Risques IA |
-| Dim 8-9 (certifications, DPA) | § 5 Mesures contractuelles |
-| Dim 10 (droits accès/suppression) | § 5 Droits des individus |
+| Critères 1-2 (infrastructure, chiffrement) | § 5 Mesures techniques |
+| Critère 3 (conservation) | § 5 Cycle de vie |
+| Critère 4 (droit d'utilisation) | § 4 Transfert + § 7 Risques |
+| Critère 5 (emplacement) | § 4 Flux et transferts |
+| Critère 7 (entraînement) | § 4 + § 7 Risques IA |
+| Critère 8 (partage 3rd) | § 4 Flux et transferts (sous-traitants) |
+| Critère 9 (cryptage technique) | § 5 Mesures techniques |
+| Critère 10 (conformité documentée: SOC2, ISO, DPA) | § 5 Mesures contractuelles |
 | Conditions remédiation audit | § 8 Conditions à remplir |
+
+Les numéros doivent correspondre à la grille réelle de `/co-evaluate-service`. Les certifications et le
+DPA sont au **critère 10**, pas 8-9. Le § 6 Droits des personnes ne se dérive d'aucun critère d'audit:
+il s'appuie sur le bloc C de l'étape 3 et sur la documentation de suppression du fournisseur.
 
 ### Grille de risques ÉFVP (§ 7)
 
@@ -138,12 +143,15 @@ Risques standard à évaluer selon les données de l'audit et du contexte:
 
 | Risque | Déclencheur |
 |--------|-------------|
-| Transfert hors QC sans encadrement | Dim 5 ≤ 2 |
-| Entraînement LLM sur les données | Dim 7 ≤ 2 |
-| Rétention excessive | Dim 3 ≤ 2 |
+| Transfert hors QC sans encadrement | Critère 5 ≤ 2 |
+| Usage des données au-delà de la prestation | Critère 4 ≤ 2 |
+| Entraînement LLM sur les données | Critère 7 ≤ 2 |
+| Rétention excessive | Critère 3 ≤ 2 |
+| Communication à des tiers non maîtrisée | Critère 8 ≤ 2 |
+| Absence d'encadrement contractuel (pas de DPA, pas de certification) | Critère 10 ≤ 2 |
 | Fuite via prompt injection | PII/sensible dans les prompts + outil IA |
 | Accès non autorisé | Pas de SSO/MFA + PII présents |
-| Droits des individus non respectés | Dim 10 ≤ 2 + PII présents |
+| Droits des individus non respectés | Aucun mécanisme de suppression ou d'accès documenté (bloc C + doc fournisseur), **pas un score d'audit** |
 | Données client exposées | Scope "projet client" + PII présents |
 
 ### Verdict ÉFVP
@@ -207,7 +215,7 @@ Champs de la BD (voir [REFERENCE.md](REFERENCE.md) pour le payload complet et le
 - `Verdict` (select) = `✅ Acceptable` / `⚠️ Conditions` / `🔴 Non acceptable` / `🔄 En évaluation`
 - `Date ÉFVP` (date) = aujourd'hui
 - `RPRP` (person) = l'utilisateur courant (chercher son ID via get-users, par nom ou courriel)
-- `Lié à l'audit` (relation) = URL de la page d'audit dans Régistre des outils
+- `Lié à l'audit` (relation) = URL de la page d'audit dans Audits des outils
 - `Scope` (select) = `Interne Compagnons` / `Projet client` (réponse du bloc A)
 - `Priorité` (select) = `🔴 Haute` si PII sensible ou scope client, `🟡 Moyenne` si PII pro, `🟢 Basse` sinon
 - `Statut` (**status**) = `In progress` si conditions à remplir, `Done` sinon

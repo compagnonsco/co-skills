@@ -2,7 +2,7 @@
 
 Le skill lit dans deux BD (les audits, le registre ÉFVP) et écrit dans une troisième (la liste pérenne).
 
-## BD source: `Régistre des outils (services tiers)` (les audits)
+## BD source: `Audits des outils (services tiers)` (les audits)
 
 - **URL**: https://www.notion.so/d18c7a098fb14b7fa01e948e14699d1d
 - **Data source ID**: `c88611ab-240d-413d-a45e-ae8608a437b6`
@@ -44,7 +44,7 @@ Valeurs possibles de `ÉFVP requise`: `🔴 Oui`, `🟡 Selon usage`, `🟢 Non`
 
 `🔴 Non acceptable` bloque l'approbation sans override. `🔄 En évaluation` se traite comme une ÉFVP absente.
 
-## BD cible: `Régistre des outils approuvés` (liste pérenne)
+## BD cible: `Régistre des services approuvés` (liste pérenne)
 
 - **URL**: https://app.notion.com/p/8357446469cb4285a170664cfb5f943c
 - **Data source ID**: `b131ae79-0ef0-407e-b83d-1d5022f854d2`
