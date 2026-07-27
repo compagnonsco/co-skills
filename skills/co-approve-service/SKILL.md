@@ -29,39 +29,63 @@ Le skill est **ré-entrant**: le relancer sur un outil déjà entamé reprend à
 
 Chercher l'outil dans la data source `c88611ab-240d-413d-a45e-ae8608a437b6` (BD `Régistre des outils (services tiers)`). Match case-insensitive, ignorer accents/ponctuation.
 
-- **Pas trouvé** → "Pas d'audit pour [Outil]. L'audit est obligatoire avant l'approbation, je le lance? (oui / non)" Si oui, enchaîner sur le skill `co-evaluate-service` en lui indiquant qu'il est appelé depuis l'orchestrateur (il rend la main au lieu de rediriger), puis revenir ici avec la row d'audit créée. Si non, arrêter.
+- **Pas trouvé** → "Pas d'audit pour [Outil]. L'audit est obligatoire avant l'approbation, je le lance? (oui / non)" Si oui, enchaîner sur le skill `co-evaluate-service` en appel orchestré (voir Handoff ci-dessous). Si non, arrêter.
 - **Un seul audit** → le prendre.
-- **Plusieurs audits** (ré-évaluations) → présenter la liste avec **date d'évaluation + verdict** pour aider l'utilisateur à choisir le bon, attendre sa sélection.
+- **Plusieurs audits** (ré-évaluations) → présenter la liste avec **date d'évaluation + verdict global + `ÉFVP requise`** pour aider l'utilisateur à choisir le bon, attendre sa sélection. Afficher le flag est obligatoire: c'est lui qui décide du gate de l'étape 3.5, et choisir un vieil audit flaggé 🟢 contournerait le gate sans que personne le voie. Si les audits **divergent sur le flag**, le dire explicitement et recommander le plus récent.
 
 Lire du row d'audit: `Verdict global`, `Score total`, `Notes / Caveats`, `Conditions remédiation`, `ÉFVP requise`, `userDefined:URL`, `Date évaluation`, l'URL de la page d'audit (pour la relation).
 
-## Étape 3 — Appliquer la règle d'approbation selon le verdict
+## Étape 3 — Trancher sur le verdict d'audit
+
+Cette étape **décide si le verdict d'audit bloque**, et met de côté les caveats à présenter. Elle ne demande aucune confirmation: la seule confirmation du flow est à l'étape 3.5, une fois l'ÉFVP connue, pour que l'utilisateur confirme les deux d'un coup.
 
 | Verdict | Action |
 |---------|--------|
-| 🟢 **Vert** | Approbation directe. Enchaîner à l'étape 4. |
-| 🟡 **Jaune** / 🟠 **Orange** | Avant d'accepter: afficher les **caveats** (les `Conditions remédiation` + `Notes / Caveats` de l'audit), rappeler le **niveau d'abonnement requis** et/ou le **cas d'usage approprié** pour que ce soit ok. Puis demander confirmation explicite: "Tu es sûr.e de vouloir l'approuver malgré ça?" Attendre le oui avant l'étape 4. |
+| 🟢 **Vert** | Ne bloque pas. Aucun caveat à retenir. Passer à l'étape 3.5. |
+| 🟡 **Jaune** / 🟠 **Orange** | Ne bloque pas, mais **retenir les caveats** pour l'étape 3.5: les `Conditions remédiation` + `Notes / Caveats` de l'audit, plus le **niveau d'abonnement requis** et/ou le **cas d'usage approprié** pour que ce soit ok. Passer à l'étape 3.5. |
 | 🔴 **Rouge** | **Pas d'approbation, pas d'override.** Expliquer pourquoi (no-go ou score trop bas). Proposer de **réévaluer avec d'autres critères / un contexte plus précis** (re-lancer `/co-evaluate-service` avec un scope affiné) pour tenter de passer au 🟡. Si ça reste rouge, ça passe pas. Arrêter ici. |
+| ⚪ **À évaluer** | L'audit existe mais n'est pas conclu: il n'y a pas de verdict à approuver. Arrêter, et proposer de finir l'audit (`/co-evaluate-service [Outil]`) avant de reprendre l'approbation. Ne jamais reporter `⚪` dans le champ `Verdict` du registre des services approuvés: cette option n'y existe pas. |
 
-## Étape 3.5 — Gate ÉFVP (Loi 25)
+## Étape 3.5 — Gate ÉFVP (Loi 25) et confirmation
 
 À faire **avant** la capture du volet commercial: inutile de collecter licence et frais si l'adoption est bloquée.
 
-Partir du champ `ÉFVP requise` lu sur la row d'audit à l'étape 2.
+### 3.5a — Chercher l'ÉFVP (toujours, quel que soit le flag)
 
-**Si le champ est vide** (audit antérieur à l'ajout du champ): le traiter comme 🟡 Selon usage. Ne jamais l'interpréter comme 🟢 Non. Proposer au passage de le remplir sur la row d'audit.
+Chercher l'outil dans la BD `Registre ÉFVP` (data source `a1f45d7a-b325-4294-89e3-76364e2f439b`), match case-insensitive sur `Outil / Système`. Ce lookup est **inconditionnel**: une ÉFVP défavorable doit bloquer même quand l'audit ne l'exigeait pas, et la relation `ÉFVP` doit être remplie au push dès qu'une page existe.
+
+- **Plusieurs ÉFVP** pour le même outil → présenter la liste (`Date ÉFVP` + `Verdict` + `Statut`) et attendre la sélection. Signaler si les verdicts divergent.
+- Noter le `Verdict`, le `Statut`, les conditions (`Notes`) et l'URL de la page.
+
+Deux verdicts tranchent immédiatement, **peu importe le verdict d'audit et le flag**:
+
+- **`🔴 Non acceptable`** → arrêter. Pas d'approbation, pas d'override. Expliquer quel risque critique reste sans mitigation et proposer de refaire l'ÉFVP une fois le risque traité.
+- **`🔄 En évaluation`** → l'ÉFVP est commencée mais pas conclue. La traiter comme absente dans la suite de l'étape, en proposant de la **finir** plutôt que d'en créer une nouvelle (voir 3.5b: l'appel à `/co-efvp` doit mentionner la page existante).
+
+Un verdict `⚠️ Conditions` ne bloque pas, mais ses conditions vont dans la confirmation de 3.5c. Une ÉFVP `✅ Acceptable` dont le `Statut` est encore `In progress` a des conditions non remplies: traiter ses `Notes` comme des conditions à afficher, elle aussi.
+
+### 3.5b — Décider si l'absence d'ÉFVP bloque
+
+Partir du champ `ÉFVP requise` lu sur la row d'audit à l'étape 2. **Si le champ est vide** (audit antérieur à l'ajout du champ): le traiter comme 🟡 Selon usage. Ne jamais l'interpréter comme 🟢 Non. Proposer au passage de le remplir sur la row d'audit.
+
+Cette sous-étape ne s'applique que si aucune ÉFVP exploitable n'a été trouvée en 3.5a.
 
 | Flag | Action |
 |------|--------|
-| 🔴 **Oui** | ÉFVP **obligatoire**. Chercher l'outil dans la BD `Registre ÉFVP` (data source `a1f45d7a-b325-4294-89e3-76364e2f439b`), match case-insensitive sur `Outil / Système`. Trouvée → continuer, noter son `Verdict` et l'URL de la page. Absente → "Cet outil traite des RP hors Québec, l'ÉFVP est obligatoire avant l'approbation (Loi 25 art. 17). Je la fais maintenant? (oui / non)". Si oui, enchaîner sur `/co-efvp` en lui indiquant qu'il est appelé depuis l'orchestrateur, puis revenir ici avec l'URL de la page ÉFVP. Si non, **arrêter**: pas d'approbation. |
+| 🔴 **Oui** | ÉFVP **obligatoire**. "Cet outil traite des RP hors Québec, l'ÉFVP est obligatoire avant l'approbation (Loi 25 art. 17). Je la fais maintenant? (oui / non)". Si oui, enchaîner sur `/co-efvp` en appel orchestré (voir Handoff ci-dessous). Si non, **arrêter**: pas d'approbation. |
 | 🟡 **Selon usage** | Demander d'abord: "Quelles données vont réellement transiter par cet outil? Pense aux cas réalistes, pas juste théoriques." Sur la réponse: des renseignements personnels (noms, courriels, données de clients ou de leurs usagers, contenu qui identifie des individus) → traiter comme 🔴 Oui ci-dessus. Aucun RP → continuer, et **exiger une justification écrite** qui ira dans `Données transmises (Loi 25)` (ex: "Usage dev interne uniquement, code source et diagnostics, aucun RP par définition du cas d'usage"). Réutiliser cette réponse à l'étape 5, ne pas reposer la question. |
 | 🟢 **Non** | Non bloquant, continuer. Si l'utilisateur veut quand même une ÉFVP, `/co-efvp` reste disponible. |
 
-**Si une ÉFVP existe avec verdict `🔴 Non acceptable`**: arrêter. Pas d'approbation, pas d'override, peu importe le verdict d'audit. Expliquer quel risque critique reste sans mitigation et proposer de refaire l'ÉFVP une fois le risque traité.
+### 3.5c — Confirmation unique
 
-**Si le verdict ÉFVP est `⚠️ Conditions`**: continuer, mais afficher les conditions (champ `Notes`) en même temps que les caveats d'audit de l'étape 3, pour que la confirmation porte sur les deux.
+C'est le seul point de confirmation du flow avant le push. Présenter d'un coup ce qui a été retenu:
 
-**Si le verdict ÉFVP est `🔄 En évaluation`**: l'ÉFVP est commencée mais pas conclue. Traiter comme absente: proposer de la finir avant d'approuver.
+- les **caveats d'audit** mis de côté à l'étape 3 (si verdict 🟡/🟠);
+- les **conditions de l'ÉFVP** (si verdict `⚠️ Conditions`, ou `✅` avec `Statut` = `In progress`).
+
+Puis demander une confirmation explicite: "Tu es sûr.e de vouloir l'approuver malgré ça?" Attendre le oui avant l'étape 4.
+
+S'il n'y a **ni caveat ni condition** (audit 🟢 et ÉFVP `✅` sans condition, ou pas d'ÉFVP requise), sauter la confirmation et passer à l'étape 4: il n'y a rien à confirmer.
 
 ## Étape 4 — Vérifier les doublons (idempotence)
 
@@ -106,14 +130,34 @@ Voir [REFERENCE.md](REFERENCE.md) pour le mapping complet + payload. Confirmer a
 
 ---
 
+## Handoff — appels orchestrés
+
+Les étapes 2 et 3.5b peuvent lancer `/co-evaluate-service` ou `/co-efvp`. Ces deux skills se terminent normalement en redirigeant vers `/co-approve-service`: sans convention, on repart en boucle. Un **appel orchestré** est un appel où on demande au skill de rendre la main au lieu de rediriger.
+
+**À transmettre à l'aller**, en une phrase au début de l'appel:
+- que c'est un appel orchestré depuis `/co-approve-service`, donc qu'il doit rendre la main à la fin plutôt que proposer une prochaine étape;
+- le nom de l'outil;
+- pour `/co-efvp`: la réponse déjà donnée sur les données qui transitent (elle correspond au bloc B du questionnaire, inutile de la reposer), et l'URL de l'ÉFVP existante s'il s'agit de finir une ÉFVP `🔄 En évaluation` plutôt que d'en créer une.
+
+**À récupérer au retour**:
+- de `/co-evaluate-service`: l'URL de la row d'audit et le flag `ÉFVP requise` retenu;
+- de `/co-efvp`: l'URL de la page ÉFVP, son `Verdict` et ses conditions.
+
+**Si le skill appelé n'aboutit pas** — l'utilisateur refuse le push Notion, abandonne en cours, ou le push échoue: il n'y a ni row d'audit ni page ÉFVP à lier. Le gate reste **fermé**. Le dire explicitement ("sans la page au registre je ne peux pas approuver") et arrêter, plutôt que de continuer vers l'étape 4 avec une relation qui pointerait dans le vide.
+
+**Si le contexte ne peut pas transiter** (le skill s'exécute dans un contexte isolé qui ne reçoit pas ces informations): ne pas enchaîner. Dire à l'utilisateur de lancer le skill manquant lui-même, puis de relancer `/co-approve-service [Outil]`. Le skill étant ré-entrant, la relance reprend à l'étape manquante sans rien refaire.
+
+---
+
 ## Règles
 
 - **Toujours en français**, ton naturel québécois.
 - **Vérifier avant de supposer** — l'audit et l'ÉFVP se vérifient dans les registres, jamais sur parole. Étape manquante = on la lance ou on arrête.
-- **Jamais approuver un 🔴 Rouge** — réévaluer, pas contourner.
+- **Le registre ÉFVP se consulte toujours** — même quand le flag dit 🟢 Non. Le flag décide si l'**absence** bloque; il ne dispense pas de regarder ce qui existe.
+- **Jamais approuver un 🔴 Rouge ni un ⚪ À évaluer** — réévaluer ou finir l'audit, pas contourner.
 - **Jamais approuver sans l'ÉFVP quand elle est requise** — et jamais avec une ÉFVP `🔴 Non acceptable`. Pas d'override sur ces deux-là.
 - **Flag `ÉFVP requise` vide = 🟡 Selon usage**, jamais 🟢 Non. Un audit ancien n'est pas une dispense.
-- **Caveats obligatoires + confirmation** sur 🟡/🟠, incluant les conditions de l'ÉFVP si verdict `⚠️ Conditions`.
+- **Une seule confirmation, à l'étape 3.5c** — elle agrège caveats d'audit et conditions d'ÉFVP. Ne pas confirmer à l'étape 3.
 - **Confirmation avant push Notion** — demander confirmation avant toute action irréversible.
 - **Pas de doublon** — détecter une approbation existante et proposer un update.
 - **Loi 25** — toujours capturer les données qui transitent par l'outil, et ne poser la question qu'une fois.

@@ -36,25 +36,33 @@ Il n'y a **pas** de champ `Conditions` distinct: les conditions vont dans `Notes
 précédées d'une ligne de contexte (verdict d'audit + score + date). Le détail complet des 9 sections
 va dans le **body** de la page, pas dans les propriétés.
 
-**Payload exemple** (notion-create-pages):
+**Payload exemple** (création de page). L'enveloppe est la même que dans les deux autres skills de la suite: `parent` + `pages`, jamais `dataSourceId` + `properties` à la racine.
+
 ```json
 {
-  "dataSourceId": "a1f45d7a-b325-4294-89e3-76364e2f439b",
-  "properties": {
-    "Outil / Système": "Claude Team — Anthropic",
-    "Fournisseur": "Anthropic PBC (San Francisco, CA, USA)",
-    "Verdict": "⚠️ Conditions",
-    "date:Date ÉFVP:start": "2026-06-24",
-    "RPRP": "[\"<id-utilisateur>\"]",
-    "Lié à l'audit": "[\"https://app.notion.com/p/<page_audit>\"]",
-    "Scope": "Interne Compagnons",
-    "Priorité": "🟡 Moyenne",
-    "Statut": "In progress",
-    "date:Révision prévue:start": "2026-09-24",
-    "Notes": "Basé sur audit 🟡 Jaune (59/75, 2026-06-20).\n\nConditions à remplir:\n1. Activer les notifications de brèche côté admin.\n2. Former les utilisateurs avant l'ouverture générale."
-  }
+  "parent": {
+    "type": "data_source_id",
+    "data_source_id": "a1f45d7a-b325-4294-89e3-76364e2f439b"
+  },
+  "pages": [{
+    "properties": {
+      "Outil / Système": "Claude Team — Anthropic",
+      "Fournisseur": "Anthropic PBC (San Francisco, CA, USA)",
+      "Verdict": "⚠️ Conditions",
+      "date:Date ÉFVP:start": "2026-06-24",
+      "RPRP": "[\"<id-utilisateur>\"]",
+      "Lié à l'audit": "[\"https://app.notion.com/p/<page_audit>\"]",
+      "Scope": "Interne Compagnons",
+      "Priorité": "🟡 Moyenne",
+      "Statut": "In progress",
+      "date:Révision prévue:start": "2026-09-24",
+      "Notes": "Basé sur audit 🟡 Jaune (59/75, 2026-06-20).\n\nConditions à remplir:\n1. Activer les notifications de brèche côté admin.\n2. Former les utilisateurs avant l'ouverture générale."
+    }
+  }]
 }
 ```
+
+**Mise à jour** d'une ÉFVP existante (étape 1.5): viser la page par son ID avec l'opération de mise à jour de propriétés, en passant seulement les champs qui changent. Ne pas repasser par une création.
 
 ---
 
@@ -66,10 +74,35 @@ va dans le **body** de la page, pas dans les propriétés.
 | `Version` | rich_text | ex: "1.0" |
 | `Statut` | **status** | `Not started`, `In progress`, `Done` |
 | `Responsable` | person | Array d'IDs utilisateur Notion |
-| `Date de publication` | date | Date ISO |
-| `Révision prévue` | date | Date ISO. Aligner sur la `Révision prévue` de l'ÉFVP |
+| `Date de publication` | date | Date ISO. S'écrit `date:Date de publication:start` dans un payload |
+| `Révision prévue` | date | Date ISO. S'écrit `date:Révision prévue:start`. Aligner sur la `Révision prévue` de l'ÉFVP |
 | `ÉFVP associée` | **url** | URL de la page ÉFVP. C'est une url, pas une relation |
 | `Notes` | rich_text | Contexte court |
+
+Comme pour le Registre ÉFVP, les champs date prennent le préfixe `date:` et le suffixe `:start`. Écrire
+`"Date de publication": "2026-07-27"` ne plante pas: le champ reste **silencieusement vide**.
+
+**Payload exemple**:
+```json
+{
+  "parent": {
+    "type": "data_source_id",
+    "data_source_id": "11dd28ba-c387-4b0b-ba3b-84b4bbd62ddb"
+  },
+  "pages": [{
+    "properties": {
+      "Outil / Système": "Claude Team — Anthropic",
+      "Version": "1.0",
+      "Statut": "Done",
+      "Responsable": "[\"<id-utilisateur>\"]",
+      "date:Date de publication:start": "2026-06-24",
+      "date:Révision prévue:start": "2026-09-24",
+      "ÉFVP associée": "https://app.notion.com/p/<page_efvp>",
+      "Notes": "Politique liée à l'ÉFVP du 2026-06-24."
+    }
+  }]
+}
+```
 
 Le corps de la politique (qui peut l'utiliser, quoi éviter, données interdites, responsabilité) va dans
 le **body** de la page.
@@ -196,7 +229,9 @@ le **body** de la page.
 | Brèche de données | Révision post-incident |
 | Délai max sans révision | 2 ans |
 
-**Prochaine révision**: [Date + 2 ans ou au prochain changement majeur]
+**Prochaine révision**: [reprendre la date du champ `Révision prévue` de la page]
+
+Deux horizons distincts, à ne pas confondre. Le champ `Révision prévue` porte la **prochaine révision de suivi**: +3 mois quand le verdict est `⚠️ Conditions` (pour vérifier où en sont les conditions), +12 mois quand il est `✅ Acceptable`. Le « 2 ans » ci-dessus est le **délai maximal** au-delà duquel une ÉFVP est périmée même sans événement déclencheur. La date écrite dans le body doit être celle du champ, jamais date + 2 ans.
 
 ---
 

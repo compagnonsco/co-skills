@@ -278,9 +278,15 @@ Confirmer le push avec l'URL de chaque page créée.
 
 ---
 
-## Étape 8 — Orienter vers la suite du flow
+## Étape 8 — Sortie
 
-Terminer en nommant la prochaine étape, selon le flag de l'étape 5.5. Sauter cette étape si le verdict est 🔴 Rouge (rien à adopter).
+Deux cas, dans cet ordre de priorité.
+
+**1. Appel orchestré** (le skill a été lancé depuis un autre skill de la suite, `/co-approve-service` ou `/co-efvp`, qui l'a signalé au départ). Ne jamais rediriger, **quel que soit le verdict, 🔴 Rouge compris**: rendre la main à l'appelant avec l'URL de la page d'audit, le `Verdict global` et le flag `ÉFVP requise` retenu. C'est lui qui décide de la suite. Rediriger ici renverrait vers le skill qui vient d'appeler celui-ci; ne pas rendre la main le laisse en attente d'un retour qui n'arrive jamais.
+
+Si le push a été refusé et qu'aucune page n'a été créée, le dire explicitement en rendant la main: sans row au registre, l'appelant ne peut pas continuer.
+
+**2. Appel direct** (l'utilisateur a tapé `/co-evaluate-service`). Nommer la prochaine étape selon le flag de l'étape 5.5. Sauter si le verdict est 🔴 Rouge: il n'y a rien à adopter.
 
 | Flag | Message de sortie |
 |------|-------------------|
@@ -289,8 +295,6 @@ Terminer en nommant la prochaine étape, selon le flag de l'étape 5.5. Sauter c
 | 🟢 Non | "Pas d'ÉFVP requise. Prochaine étape: `/co-approve-service [Outil]`." |
 
 Ne jamais envoyer directement vers `/co-approve-service` quand le flag est 🔴.
-
-Si l'audit a été lancé **depuis** `/co-approve-service`, ne pas rediriger: rendre la main à l'orchestrateur avec l'URL de la page d'audit créée et le flag retenu.
 
 ---
 

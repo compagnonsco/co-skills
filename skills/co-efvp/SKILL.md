@@ -1,6 +1,6 @@
 ---
 name: co-efvp
-description: Réaliser une ÉFVP (Évaluation des facteurs relatifs à la vie privée) conforme Loi 25 art. 17 pour un outil/SaaS. Vérifie qu'un audit /co-evaluate-service existe d'abord, collecte les questions contextuelles (~40%), fusionne avec les données de la grille audit (~60%), produit les 9 sections de l'ÉFVP, puis push dans le registre ÉFVP Notion. Redirige vers /co-approve-service à la fin. Utiliser quand l'utilisateur dit "/co-efvp", "fais l'ÉFVP pour X", "on a besoin d'un ÉFVP pour X", ou avant d'adopter un SaaS qui traite des données personnelles. Chaînon central entre /co-evaluate-service et /co-approve-service.
+description: Réaliser une ÉFVP (Évaluation des facteurs relatifs à la vie privée) conforme Loi 25 art. 17 pour un outil/SaaS. Reprend une ÉFVP existante plutôt que d'en créer un doublon, vérifie qu'un audit /co-evaluate-service existe d'abord, collecte les questions contextuelles (~40%), fusionne avec les données de la grille audit (~60%), produit les 9 sections de l'ÉFVP, push dans le registre ÉFVP Notion, et propose la politique d'usage acceptable quand l'outil traite des RP. Termine en orientant vers /co-approve-service, ou en rendant la main quand il est appelé depuis lui. Utiliser quand l'utilisateur dit "/co-efvp", "fais l'ÉFVP pour X", "on a besoin d'un ÉFVP pour X", ou avant d'adopter un SaaS qui traite des données personnelles. Chaînon central entre /co-evaluate-service et /co-approve-service.
 ---
 
 **LANGUE**: Toujours répondre en français, ton naturel québécois. Aucun mot anglais sauf les noms techniques (SaaS, DPA, Loi 25, ÉFVP, PII, ZDR, SSO, MFA, etc.). L'input fourni par l'utilisateur donne l'outil visé.
@@ -29,6 +29,21 @@ Voir [REFERENCE.md](REFERENCE.md) pour les schemas Notion, la grille de risques,
 - **0 nom**: interactif → "Pour quel outil tu veux faire l'ÉFVP?"
 - **1 nom**: cet outil.
 
+**Si l'appel est orchestré** (lancé depuis `/co-approve-service` plutôt que par l'utilisateur), noter ce qui a été transmis: le nom de l'outil, la réponse déjà donnée sur les données qui transitent (elle remplace le bloc B de l'étape 3, ne pas la reposer), et l'URL d'une ÉFVP existante à finir le cas échéant. Un appel orchestré change la fin du skill: voir l'étape 8.
+
+---
+
+## Étape 1.5 — Vérifier si une ÉFVP existe déjà (idempotence)
+
+Avant de collecter quoi que ce soit, chercher l'outil dans la BD `Registre ÉFVP` (data source `a1f45d7a-b325-4294-89e3-76364e2f439b`), match case-insensitive sur `Outil / Système`. Sans ce contrôle, chaque relance crée une row de plus et le gate de `/co-approve-service` se retrouve devant plusieurs pages sans savoir laquelle fait foi.
+
+- **Aucune ÉFVP** → continuer à l'étape 2.
+- **ÉFVP trouvée** → présenter son `Verdict`, son `Statut` et sa `Date ÉFVP`, puis demander quoi faire:
+  - **La compléter ou la corriger** (le cas normal quand son `Verdict` est `🔄 En évaluation`, ou quand des conditions ont été remplies depuis): reprendre son contenu comme point de départ et, à l'étape 6, **mettre à jour la page existante** au lieu d'en créer une.
+  - **En refaire une neuve** (le contexte a changé: nouveau scope, nouvelle politique du fournisseur, réévaluation périodique): créer une nouvelle page à l'étape 6. L'ancienne reste au registre comme historique.
+  - **Juste consulter**: afficher le résumé et arrêter là.
+- **Plusieurs ÉFVP** → présenter la liste (date + verdict + statut) et attendre la sélection avant d'appliquer le choix ci-dessus.
+
 ---
 
 ## Étape 2 — Vérifier l'audit existant (gate obligatoire)
@@ -39,7 +54,7 @@ Chercher l'outil dans la data source `c88611ab-240d-413d-a45e-ae8608a437b6` (BD 
 
 - **Pas d'audit trouvé:**
   > "Pas d'audit existant pour [Outil]. L'ÉFVP se base sur les données d'audit — il faut faire `/co-evaluate-service [Outil]` d'abord. Je lance ça?"
-  Si oui, enchaîner sur le skill `co-evaluate-service`, puis revenir à `/co-efvp` une fois l'audit complété. Sinon, arrêter.
+  Si oui, enchaîner sur le skill `co-evaluate-service` **en appel orchestré**: lui indiquer qu'il est lancé depuis `/co-efvp` et qu'il doit rendre la main avec l'URL de la row d'audit et le flag `ÉFVP requise` retenu, au lieu de proposer une prochaine étape (sans ça, il redirige vers `/co-efvp` et on repart de zéro). Puis reprendre ici. Si l'audit n'aboutit pas (push refusé, abandon), arrêter: pas d'ÉFVP sans audit. Sinon, arrêter.
 
 - **Un audit trouvé:** Le prendre. Lire: `Verdict global`, `Score total`, scores par dimension (si disponibles dans le row), `Notes / Caveats`, `Conditions remédiation`, `ÉFVP requise`, `userDefined:URL`, `Date évaluation`, URL de la page d'audit.
 
@@ -66,6 +81,9 @@ Poser les questions suivantes par blocs. **Attendre la réponse entre chaque blo
 **Attendre.**
 
 ### Bloc B — Type de données
+
+**Si la réponse a été transmise dans un appel orchestré** (voir étape 1), ne pas reposer la question: reprendre la réponse, la reformuler pour confirmation en une ligne, et passer au bloc C.
+
 > "Quelles données vont transiter par cet outil? Pense aux cas réalistes, pas juste théoriques.
 > (ex: prompts de travail interne, noms d'employés, emails de contacts, données de clients, données sensibles, code source, BDs de test, etc.)"
 
@@ -177,7 +195,11 @@ Puis: "Je push l'ÉFVP complète (9 sections) dans le registre Notion? (oui / no
 
 **Confirmation obligatoire avant push** (demander confirmation avant toute action irréversible).
 
-Si oui, créer la page dans la data source `a1f45d7a-b325-4294-89e3-76364e2f439b` (BD `Registre ÉFVP`, URL https://www.notion.so/c1b99a14fa1e42e895db35d08d9eb1a5):
+**Créer ou mettre à jour**, selon le choix fait à l'étape 1.5: s'il s'agit de compléter ou corriger une ÉFVP existante, mettre à jour cette page (mêmes champs, même body) plutôt que d'en créer une seconde. Ne créer une nouvelle page que si aucune ÉFVP n'existait ou si le choix était explicitement d'en refaire une neuve.
+
+Si l'utilisateur refuse le push, le dire clairement: sans page au registre, l'ÉFVP n'existe pas pour `/co-approve-service` et l'approbation restera bloquée.
+
+Si oui, créer (ou mettre à jour) la page dans la data source `a1f45d7a-b325-4294-89e3-76364e2f439b` (BD `Registre ÉFVP`, URL https://www.notion.so/c1b99a14fa1e42e895db35d08d9eb1a5):
 
 Champs de la BD (voir [REFERENCE.md](REFERENCE.md) pour le payload complet et les types exacts):
 - `Outil / Système` (title) = nom de l'outil
@@ -223,16 +245,19 @@ Après le push, rappeler le partage (le skill ne poste rien lui-même):
 
 ---
 
-## Étape 8 — Redirection vers /co-approve-service
+## Étape 8 — Sortie
 
-Toujours terminer avec:
+Deux cas, dans cet ordre de priorité.
 
-> "L'ÉFVP est complétée et enregistrée. Pour officialiser l'adoption, lance maintenant: `/co-approve-service [Outil]`"
+**1. Appel orchestré** (le skill a été lancé depuis `/co-approve-service`, voir étape 1). Ne jamais rediriger, quel que soit le verdict: rendre la main avec l'URL de la page ÉFVP, son `Verdict` et ses conditions. C'est l'orchestrateur qui décide de la suite, y compris l'arrêt sur un verdict `🔴 Non acceptable`. Rediriger ici renverrait vers le skill qui vient d'appeler celui-ci.
 
-Si l'ÉFVP a été lancée **depuis** `/co-approve-service` (il l'appelle quand elle manque), ne pas rediriger: rendre la main à l'orchestrateur avec l'URL de la page ÉFVP créée, il enchaîne sur l'approbation.
+**2. Appel direct** (l'utilisateur a tapé `/co-efvp`):
 
-Si le verdict ÉFVP est 🔴 Non acceptable:
-> "L'ÉFVP est 🔴 Non acceptable — l'outil ne peut pas être adopté tant que les risques critiques ne sont pas résolus. Il n'y a pas lieu de faire `/co-approve-service` pour l'instant."
+- Verdict `✅ Acceptable` ou `⚠️ Conditions`:
+  > "L'ÉFVP est complétée et enregistrée. Pour officialiser l'adoption, lance maintenant: `/co-approve-service [Outil]`"
+- Verdict `🔴 Non acceptable`:
+  > "L'ÉFVP est 🔴 Non acceptable: l'outil ne peut pas être adopté tant que les risques critiques ne sont pas résolus. Il n'y a pas lieu de faire `/co-approve-service` pour l'instant."
+- Verdict `🔄 En évaluation` (analyse incomplète, infos manquantes du fournisseur): dire ce qui manque et que l'approbation restera bloquée tant que l'ÉFVP n'est pas conclue.
 
 ---
 
@@ -241,6 +266,8 @@ Si le verdict ÉFVP est 🔴 Non acceptable:
 - **Toujours en français**, ton naturel québécois.
 - **Interactif, un bloc à la fois** — pas de mur de texte, pas de tout envoyer d'un coup.
 - **Gate obligatoire**: pas d'ÉFVP sans audit existant.
+- **Pas de doublon**: toujours vérifier le registre ÉFVP avant de collecter (étape 1.5). Une ÉFVP existante se complète ou se corrige; on n'en crée une seconde que si le contexte a réellement changé.
+- **Appel orchestré = rendre la main**, jamais rediriger. Priorité sur toute autre règle de sortie.
 - **Confirmation avant push Notion** — demander confirmation avant toute action irréversible.
 - **Noms de champs exacts** — les libellés de propriétés et d'options select doivent matcher la BD au caractère près (voir REFERENCE.md). Ne jamais inventer un nom "logique".
 - **Verdict ÉFVP ≠ verdict audit** — ils sont complémentaires, pas redondants.
