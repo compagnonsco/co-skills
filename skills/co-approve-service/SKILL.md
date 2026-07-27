@@ -35,6 +35,8 @@ Chercher l'outil dans la data source `c88611ab-240d-413d-a45e-ae8608a437b6` (BD 
 
 Lire du row d'audit: `Verdict global`, `Score total`, `Notes / Caveats`, `Conditions remédiation`, `ÉFVP requise`, `userDefined:URL`, `Date évaluation`, l'URL de la page d'audit (pour la relation).
 
+**Signaler tôt une approbation existante.** Jeter un œil au `Régistre des services approuvés` dès maintenant et, si l'outil y est déjà, le dire en une ligne: "Note: [Outil] est déjà approuvé depuis le [date] (licence [X], statut [Y]). On va donc vers une mise à jour de cette entrée." C'est une **information, pas un raccourci**: les étapes 3 et 3.5 s'exécutent normalement. Une mise à jour peut élargir le scope (nouveaux sièges, nouveau cas d'usage, nouvelles données), donc le verdict d'audit et l'ÉFVP se revérifient comme pour une première approbation. Le but est seulement d'éviter que l'utilisateur découvre à l'étape 4, après avoir tout fourni, qu'il s'agissait d'un update.
+
 ## Étape 3 — Trancher sur le verdict d'audit
 
 Cette étape **décide si le verdict d'audit bloque**, et met de côté les caveats à présenter. Elle ne demande aucune confirmation: la seule confirmation du flow est à l'étape 3.5, une fois l'ÉFVP connue, pour que l'utilisateur confirme les deux d'un coup.
@@ -89,9 +91,18 @@ S'il n'y a **ni caveat ni condition** (audit 🟢 et ÉFVP `✅` sans condition,
 
 ## Étape 4 — Vérifier les doublons (idempotence)
 
-Chercher l'outil dans la BD `Régistre des services approuvés` (data source `b131ae79-0ef0-407e-b83d-1d5022f854d2`).
-- **Déjà présent** → "Déjà approuvé le [Date d'approbation] (licence [X], statut [Y]). Tu veux mettre à jour cette entrée au lieu d'en créer une nouvelle?" Si update → modifier la row existante. Sinon, arrêter.
+Chercher l'outil dans la BD `Régistre des services approuvés` (data source `b131ae79-0ef0-407e-b83d-1d5022f854d2`). Si l'existence d'une approbation a déjà été signalée à l'étape 2, ne pas refaire la recherche: enchaîner directement sur la question.
+
+- **Déjà présent** → "Déjà approuvé le [Date d'approbation] (licence [X], statut [Y]). Tu veux mettre à jour cette entrée au lieu d'en créer une nouvelle?" Si update → modifier la row existante (voir ci-dessous). Sinon, arrêter.
 - **Absent** → continuer.
+
+**Sur une mise à jour**, ne pas se contenter des champs commerciaux qui changent. Trois points à traiter explicitement:
+
+- **Relation `ÉFVP`**: une row approuvée avant l'ajout de ce champ l'a vide. Si une ÉFVP a été trouvée à l'étape 3.5a, la lier maintenant. C'est le principal rattrapage à faire sur les approbations existantes.
+- **Relation `Audit`** et champ `Verdict`: les repointer vers l'audit retenu à l'étape 2 s'il est plus récent que celui déjà lié.
+- **`Données transmises (Loi 25)`**: si le scope a changé, remplacer le texte plutôt que l'accumuler.
+
+Laisser intacts les champs que la mise à jour ne concerne pas (`Date d'approbation` d'origine, `Approuvé par` d'origine): ils documentent la décision initiale.
 
 ## Étape 5 — Capture interactive du volet commercial/licence
 
