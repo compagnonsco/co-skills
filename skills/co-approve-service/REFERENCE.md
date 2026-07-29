@@ -2,7 +2,7 @@
 
 Le skill lit dans deux BD (les audits, le registre ÉFVP) et écrit dans une troisième (la liste pérenne).
 
-## BD source: `Régistre des outils (services tiers)` (les audits)
+## BD source: `Audits des outils (services tiers)` (les audits)
 
 - **URL**: https://www.notion.so/d18c7a098fb14b7fa01e948e14699d1d
 - **Data source ID**: `c88611ab-240d-413d-a45e-ae8608a437b6`
@@ -44,7 +44,7 @@ Valeurs possibles de `ÉFVP requise`: `🔴 Oui`, `🟡 Selon usage`, `🟢 Non`
 
 `🔴 Non acceptable` bloque l'approbation sans override. `🔄 En évaluation` se traite comme une ÉFVP absente.
 
-## BD cible: `Régistre des outils approuvés` (liste pérenne)
+## BD cible: `Régistre des services approuvés` (liste pérenne)
 
 - **URL**: https://app.notion.com/p/8357446469cb4285a170664cfb5f943c
 - **Data source ID**: `b131ae79-0ef0-407e-b83d-1d5022f854d2`
@@ -115,3 +115,27 @@ Exemple person + relations:
 "Audit": "[\"https://app.notion.com/p/<page_audit>\"]",
 "ÉFVP": "[\"https://app.notion.com/p/<page_efvp>\"]"
 ```
+
+### Mise à jour d'une approbation existante
+
+Viser la page par son ID avec l'opération de mise à jour de propriétés, en ne passant que ce qui change. Les propriétés omises sont préservées.
+
+```json
+{
+  "page_id": "<id_page_approbation>",
+  "properties": {
+    "ÉFVP": "[\"https://app.notion.com/p/<page_efvp>\"]",
+    "Audit": "[\"https://app.notion.com/p/<page_audit_recent>\"]",
+    "Verdict": "🟡 Jaune",
+    "Nb de sièges": 8,
+    "Frais par mois total (tous les sièges)": 144,
+    "Données transmises (Loi 25)": "Scope élargi: inclut désormais les rencontres avec clients."
+  }
+}
+```
+
+Trois pièges sur cette opération:
+
+- **`ÉFVP` est le champ à ne pas oublier.** Les rows créées avant l'ajout de la relation l'ont vide; une mise à jour est l'occasion de la relier. C'est le rattrapage principal sur le parc existant.
+- **Ne pas toucher `Date d'approbation` ni `Approuvé par`**: ils documentent la décision d'origine, pas la dernière modification.
+- **Les relations se remplacent, elles ne s'ajoutent pas.** Passer un array avec la nouvelle URL écrase l'ancienne. Pour lier un second audit tout en gardant le premier, passer les deux URLs dans le même array.

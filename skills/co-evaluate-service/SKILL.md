@@ -7,13 +7,13 @@ description: Évaluer un outil/service SaaS avant adoption selon la grille de go
 
 ## Dépendances
 
-- **Notion** (registres de gouvernance de l'équipe): le skill lit et écrit dans la BD `Régistre des outils (services tiers)` (data source `c88611ab-240d-413d-a45e-ae8608a437b6`). Nécessite un accès Notion dans le runtime (connecteur built-in, MCP installé, ou équivalent). Si Notion est absent, le skill peut quand même produire l'évaluation en chat, mais sans la vérification d'antériorité ni le push final.
+- **Notion** (registres de gouvernance de l'équipe): le skill lit et écrit dans la BD `Audits des outils (services tiers)` (data source `c88611ab-240d-413d-a45e-ae8608a437b6`). Nécessite un accès Notion dans le runtime (connecteur built-in, MCP installé, ou équivalent). Si Notion est absent, le skill peut quand même produire l'évaluation en chat, mais sans la vérification d'antériorité ni le push final.
 - **Recherche web**: pour investiguer les sources publiques (Trust Center, DPA, Privacy, etc.). Si absente, l'évaluation se base sur les infos fournies par l'utilisateur, avec une fiabilité réduite.
 - **Agents secondaires** (optionnel): accélèrent les investigations en les menant en parallèle si le runtime les supporte; sinon le skill investigue séquentiellement.
 
 ## Objectif
 
-Évaluer un SaaS via la **grille 15 dimensions** de gouvernance IA. Score numérique 1-5 par dimension, total /75, verdict 🟢🟡🟠🔴. **No-go automatique** sur 5 dimensions critiques (4, 5, 7, 10, 14) si score = 1. Output: tableau récap en chat + push BD Notion `Régistre des outils (services tiers)`.
+Évaluer un SaaS via la **grille 15 dimensions** de gouvernance IA. Score numérique 1-5 par dimension, total /75, verdict 🟢🟡🟠🔴. **No-go automatique** sur 5 dimensions critiques (4, 5, 7, 10, 14) si score = 1. Output: tableau récap en chat + push BD Notion `Audits des outils (services tiers)`.
 
 Trois modes:
 - **Deep dive** sur 1 outil (`/co-evaluate-service Granola`)
@@ -39,11 +39,11 @@ Pour chaque outil, identifier:
 
 ## Étape 1.5 — Vérifier si déjà évalué dans Notion (PRIORITAIRE)
 
-**Avant de lancer les agents secondaires** (qui coûtent du temps et des tokens), vérifier dans la BD `Régistre des outils (services tiers)` si l'outil a déjà été évalué. Évite de refaire le travail et donne à l'utilisateur le contexte historique.
+**Avant de lancer les agents secondaires** (qui coûtent du temps et des tokens), vérifier dans la BD `Audits des outils (services tiers)` si l'outil a déjà été évalué. Évite de refaire le travail et donne à l'utilisateur le contexte historique.
 
 Pour chaque outil parsé:
 
-1. **Chercher dans la data source Notion** `c88611ab-240d-413d-a45e-ae8608a437b6` (BD `Régistre des outils (services tiers)`, URL https://www.notion.so/d18c7a098fb14b7fa01e948e14699d1d). Utiliser l'outil de recherche Notion disponible dans ton runtime (selon le client: outil `notion-search`/`search` du connecteur Notion built-in, du MCP Notion installé, ou équivalent), filtré sur cette data source, avec query = nom de l'outil. Fallback si rien de probant: fetcher la data source au complet et parcourir les rows. Match: case-insensitive, ignorer accents et ponctuation mineure (ex: "ChatGPT" = "chatgpt" = "Chat GPT").
+1. **Chercher dans la data source Notion** `c88611ab-240d-413d-a45e-ae8608a437b6` (BD `Audits des outils (services tiers)`, URL https://www.notion.so/d18c7a098fb14b7fa01e948e14699d1d). Utiliser l'outil de recherche Notion disponible dans ton runtime (selon le client: outil `notion-search`/`search` du connecteur Notion built-in, du MCP Notion installé, ou équivalent), filtré sur cette data source, avec query = nom de l'outil. Fallback si rien de probant: fetcher la data source au complet et parcourir les rows. Match: case-insensitive, ignorer accents et ponctuation mineure (ex: "ChatGPT" = "chatgpt" = "Chat GPT").
 
 2. **Si match trouvé**, présenter à l'utilisateur:
 
@@ -264,11 +264,11 @@ Présenter le flag proposé et demander confirmation, comme pour les dimensions 
 
 **Confirmation obligatoire avant push** (demander confirmation avant toute action irréversible):
 
-> "Je pousse l'évaluation dans la BD `Régistre des outils (services tiers)`? (oui / non / ajuster d'abord)"
+> "Je pousse l'évaluation dans la BD `Audits des outils (services tiers)`? (oui / non / ajuster d'abord)"
 
 Si oui:
 - Utiliser l'outil de création de page Notion disponible dans ton runtime (selon le client: `notion-create-pages`/`create-pages` du connecteur Notion built-in, du MCP Notion installé, ou équivalent)
-- Cible: data source `c88611ab-240d-413d-a45e-ae8608a437b6` (BD `Régistre des outils (services tiers)`, https://www.notion.so/d18c7a098fb14b7fa01e948e14699d1d)
+- Cible: data source `c88611ab-240d-413d-a45e-ae8608a437b6` (BD `Audits des outils (services tiers)`, https://www.notion.so/d18c7a098fb14b7fa01e948e14699d1d)
 - Mapper tous les champs (voir [REFERENCE.md](REFERENCE.md) pour le schema complet et le payload exemple)
 - **Important**: champ URL = `userDefined:URL` dans le payload (convention Notion API)
 

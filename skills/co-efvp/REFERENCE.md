@@ -4,10 +4,10 @@
 
 | BD | Data source ID | URL page |
 |----|---------------|----------|
-| Régistre des outils (audits) | `c88611ab-240d-413d-a45e-ae8608a437b6` | https://www.notion.so/d18c7a098fb14b7fa01e948e14699d1d |
+| Audits des outils (services tiers) | `c88611ab-240d-413d-a45e-ae8608a437b6` | https://www.notion.so/d18c7a098fb14b7fa01e948e14699d1d |
 | Registre ÉFVP | `a1f45d7a-b325-4294-89e3-76364e2f439b` | https://www.notion.so/c1b99a14fa1e42e895db35d08d9eb1a5 |
 | Politiques d'usage acceptable | `11dd28ba-c387-4b0b-ba3b-84b4bbd62ddb` | (page parente ÉFVP) |
-| Régistre des outils approuvés | `b131ae79-0ef0-407e-b83d-1d5022f854d2` | https://www.notion.so/8357446469cb4285a170664cfb5f943c |
+| Régistre des services approuvés | `b131ae79-0ef0-407e-b83d-1d5022f854d2` | https://www.notion.so/8357446469cb4285a170664cfb5f943c |
 
 **ID utilisateur (Responsable)**: chercher via l'outil get-users (par nom ou courriel) au moment du push.
 
@@ -119,7 +119,7 @@ le **body** de la page.
 | Catégorie | [AI/LLM, Comm, Dev tools, etc.] |
 | Date ÉFVP | [YYYY-MM-DD] |
 | Responsable ÉFVP | l'utilisateur courant |
-| Basée sur l'audit | [lien vers la page d'audit dans Régistre des outils] |
+| Basée sur l'audit | [lien vers la page d'audit dans Audits des outils] |
 | Loi applicable | Loi 25 (Loi modernisant des dispositions législatives en matière de protection des renseignements personnels, Québec) — art. 17 |
 
 ---
@@ -149,7 +149,7 @@ le **body** de la page.
 
 ### § 4 — Flux de données et transferts
 
-- **Hébergement**: [Région(s) selon audit dim. 1+5]
+- **Hébergement**: [Région(s) selon audit critères 1+5]
 - **Transfert hors Québec**: [Oui / Non] — [Juridiction: ex. États-Unis (US-Ouest, AWS/Azure)]
 - **Base légale du transfert** (Loi 25 art. 17): [DPA signé / Clauses contractuelles types / À signer]
 - **Sous-processeurs principaux**: [Liste selon audit ou site fournisseur]
@@ -163,13 +163,13 @@ le **body** de la page.
 - [ ] DPA (Data Processing Agreement) signé ou auto-incorporé
 - [ ] Clauses de suppression à la résiliation
 - [ ] Obligation de notification de brèche (délai contractuel)
-- [ ] Certification: [SOC 2, ISO 27001, etc. — selon audit dim. 8]
+- [ ] Certification: [SOC 2, ISO 27001, etc. — selon audit critère 10]
 
-#### Techniques (selon audit dim. 1-2-3)
+#### Techniques (selon audit critères 1-2-3)
 - Chiffrement en transit: [TLS 1.2+]
 - Chiffrement au repos: [AES-256 ou équivalent]
 - ZDR (Zero Data Retention): [Disponible / Non disponible / Disponible sur plan X]
-- Conservation côté fournisseur: [Durée selon audit dim. 3]
+- Conservation côté fournisseur: [Durée selon audit critère 3]
 
 #### Organisationnelles (selon réponses contexte)
 - [ ] SSO/MFA activé (compte org)
@@ -182,7 +182,7 @@ le **body** de la page.
 
 ### § 6 — Droits des personnes concernées
 
-- **Droit d'accès / rectification / suppression**: [Comment c'est adressé selon audit dim. 10]
+- **Droit d'accès / rectification / suppression**: [Comment c'est adressé selon le bloc C de l'étape 3 et la doc du fournisseur]
 - **Délai de réponse contractuel**: [Si dans le DPA]
 - **Contact DPO fournisseur**: [privacy@fournisseur.com si connu]
 - **Contact responsable vie privée de l'organisation**: [courriel du responsable désigné]
@@ -237,14 +237,24 @@ Deux horizons distincts, à ne pas confondre. Le champ `Révision prévue` porte
 
 ## Grille de mapping audit → risque ÉFVP
 
+Les numéros ci-dessous sont ceux de la grille d'audit réelle (voir `co-evaluate-service/REFERENCE.md`).
+Se tromper de numéro fait lire la mauvaise colonne sans aucune erreur visible: le risque est calculé
+sur un score qui mesure autre chose.
+
 | Dimension audit | Score | Risque ÉFVP associé | Impact si ≤ 2 |
 |----------------|-------|---------------------|---------------|
-| 3 — Conservation | ≤ 2 | Rétention excessive | Élevé |
-| 4 — Utilisation données | ≤ 2 | Transfert sans encadrement | Critique |
-| 5 — Hébergement/Juridiction | ≤ 2 | Transfert hors QC non couvert | Critique |
-| 7 — No-training | ≤ 2 | Entraînement LLM sur données | Élevé |
-| 8 — Certifications | ≤ 2 | Absence encadrement contractuel | Modéré |
-| 10 — Droits accès/suppression | ≤ 2 | Droits individus non respectables | Élevé |
 | 2 — Chiffrement | ≤ 2 | Fuite en transit/repos | Élevé |
+| 3 — Conservation | ≤ 2 | Rétention excessive | Élevé |
+| 4 — Droit d'utilisation | ≤ 2 | Le fournisseur s'octroie un usage des données au-delà de la prestation | Critique |
+| 5 — Emplacement | ≤ 2 | Transfert hors QC non couvert | Critique |
+| 7 — Entraînement | ≤ 2 | Entraînement LLM sur données | Élevé |
+| 8 — Partage 3rd | ≤ 2 | Communication à des tiers non maîtrisée | Élevé |
+| 10 — Conformité documentée | ≤ 2 | Absence de certifications et d'encadrement contractuel (SOC2, ISO, DPA) | Modéré |
 
 **Logique**: Score ≤ 2 sur une dimension critique = risque Élevé ou Critique par défaut dans l'ÉFVP, sauf si des mesures organisationnelles (contexte Étape 3) viennent compenser.
+
+**Les droits des personnes ne se dérivent pas de l'audit.** Aucun des 15 critères ne mesure la capacité
+d'un individu à faire valoir ses droits d'accès, de rectification ou de suppression. Ce risque
+s'évalue à partir du bloc C de l'étape 3 (cycle de vie organisationnel: qui a accès, comment un compte
+et ses données sont supprimés) et de la documentation du fournisseur sur la suppression, pas d'un score.
+Le déduire du critère 10 revient à confondre « pas de SOC2 » avec « les droits ne sont pas respectables ».

@@ -217,7 +217,7 @@ Détails techniques pour le skill `/co-evaluate-service`. Le SKILL.md pointe ici
 
 ---
 
-## Schema BD Notion `Régistre des outils (services tiers)`
+## Schema BD Notion `Audits des outils (services tiers)`
 
 **URL**: https://www.notion.so/d18c7a098fb14b7fa01e948e14699d1d  
 **Data source ID**: `c88611ab-240d-413d-a45e-ae8608a437b6`
