@@ -217,7 +217,7 @@ Détails techniques pour le skill `/co-evaluate-service`. Le SKILL.md pointe ici
 
 ---
 
-## Schema BD Notion `Régistre des outils (services tiers)`
+## Schema BD Notion `Audits des outils (services tiers)`
 
 **URL**: https://www.notion.so/d18c7a098fb14b7fa01e948e14699d1d  
 **Data source ID**: `c88611ab-240d-413d-a45e-ae8608a437b6`
@@ -232,6 +232,7 @@ Détails techniques pour le skill `/co-evaluate-service`. Le SKILL.md pointe ici
 | `Verdict global` | select | `🟢 Vert (>60)`, `🟡 Jaune (45-60)`, `🟠 Orange (30-45)`, `🔴 Rouge (<30 ou no-go)`, `⚪ À évaluer` | calculé |
 | `Score total` | number | 0-75 | calculé |
 | `Nb no-go auto` | number | 0-5 | calculé |
+| `ÉFVP requise` | select | `🔴 Oui`, `🟡 Selon usage`, `🟢 Non` | étape 5.5 (gate de `/co-approve-service`) |
 | `Critère 1 — Infrastructure` | number | 1-5 | scoring |
 | `Critère 2 — Chiffrement` | number | 1-5 | scoring |
 | `Critère 3 — Conservation` | number | 1-5 | scoring |
@@ -271,6 +272,7 @@ Format générique, transposable selon l'outil de création de page disponible (
       "Verdict global": "🟠 Orange (30-45)",
       "Score total": 38,
       "Nb no-go auto": 0,
+      "ÉFVP requise": "🔴 Oui",
       "Critère 1 — Infrastructure": 3,
       "Critère 2 — Chiffrement": 4,
       "Critère 3 — Conservation": 3,
